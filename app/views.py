@@ -6,17 +6,21 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-# from django.views.decorators.csrf import csrf_exempt
 from rest_framework import permissions, status
+from rest_framework.authentication import (SessionAuthentication,
+                                           TokenAuthentication)
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import DocumentItem
-from .serializers import DocumentItemSerializer
+from .serializers import DocumentItemSerializer, DocumentItemUpdSerializer
 
 
 class DocumentItemList(APIView):
     permission_classes = (permissions.IsAuthenticated,)
+    
+    # permission_classes = [AllowAny]
     """
     List [40] DocumentItem, 
     or create a new DocumentItem.
@@ -36,7 +40,7 @@ class DocumentItemList(APIView):
 
     @swagger_auto_schema(
         request_body=DocumentItemSerializer,
-        responses={'201': openapi.Response('response description', DocumentItemSerializer(many=True))}
+        responses={'201': openapi.Response('response description', DocumentItemSerializer(many=False))}
     )
     def post(self, request, format=None):
         serializer = DocumentItemSerializer(data=request.data)
@@ -45,18 +49,29 @@ class DocumentItemList(APIView):
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+        
+class DocumentItemUpdate(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    
+    """
+    Update DocumentItem by id (uuid)
+    """
+    def get_object(self, pk):
+        try:
+            return DocumentItem.objects.get(pk=pk)
+        except DocumentItem.DoesNotExist:
+            raise Http404
 
     @swagger_auto_schema(
-        request_body=DocumentItemSerializer,
-        responses={'200': openapi.Response('response description', DocumentItemSerializer(many=True))}
+        request_body=DocumentItemUpdSerializer,
+        responses={'200': openapi.Response('response description', DocumentItemUpdSerializer(many=False))}
     )
-    def put(self, request, format=None):
-        old_data = self.get_object(pk=request.data['id'])
-        serializer = DocumentItemSerializer(old_data, data=request.data, partial=True)
+    def put(self, request, id, format=None):
+        old_data = self.get_object(pk=id)
+        serializer = DocumentItemUpdSerializer(old_data, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save(updated_by=self.request.user) #Update
 
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+                

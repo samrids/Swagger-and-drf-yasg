@@ -9,7 +9,8 @@ class DocumentItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     documentId = models.IntegerField(null= False)
     inventoryId = models.IntegerField(null= False)
-    name = models.CharField(max_length=250, blank=False, null=False, unique=False, db_index=False)
+    name = models.CharField(max_length=250, blank=False, null=False, \
+        unique=False, db_index=False, verbose_name='Description', help_text='รายละเอียด')
     
     isSync = models.BooleanField(null=False, default=False)
     sync_at = models.DateTimeField(auto_now_add=True)
