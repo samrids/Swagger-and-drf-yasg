@@ -1,7 +1,20 @@
+from app.models import DocumentItem, Vendor
 from rest_framework import serializers
 
-from app.models import DocumentItem
 
+class VendorSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Vendor
+        fields = (
+            'id',
+            'street_address',
+            'city',
+            # 'organization',
+            'created_by',
+            'updated_by',
+            )
+        read_only_fields = ('id', 'created_by', 'updated_by',)
 
 class DocumentItemSerializer(serializers.ModelSerializer):
     

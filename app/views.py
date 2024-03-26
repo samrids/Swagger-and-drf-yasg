@@ -2,10 +2,12 @@
 import json
 
 import requests
+from django.db.models import Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from organizations.models import Organization, OrganizationUser
 from rest_framework import permissions, status
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
@@ -13,8 +15,48 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import DocumentItem
-from .serializers import DocumentItemSerializer, DocumentItemUpdSerializer
+from .models import DocumentItem, Vendor
+from .serializers import (DocumentItemSerializer, DocumentItemUpdSerializer,
+                          VendorSerializer)
+
+
+class VendorList(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    
+    """
+    List [40] Vendor,
+    or create a new Vendor.
+    """
+    def get_object(self, pk):
+        try:
+            return Vendor.objects.get(pk=pk)
+        except Vendor.DoesNotExist:
+            raise Http404
+
+    @swagger_auto_schema(responses={200: VendorSerializer(many=True)})
+    def get(self, request, format=None):
+        org_id = OrganizationUser.objects.get( \
+            user=request.user).organization_id
+            
+        dataset = Vendor.objects.filter(Q(created_by=self.request.user) | \
+            Q(organization_id=org_id)).order_by('-created_at')[:40]
+        serializer = VendorSerializer(dataset, many=True)
+        #Validate
+        return Response(serializer.data)
+
+    @swagger_auto_schema(
+        request_body=VendorSerializer,
+        responses={'201': openapi.Response('response description', VendorSerializer(many=False))}
+    )
+    def post(self, request, format=None):
+        serializer = VendorSerializer(data=request.data)
+        if serializer.is_valid():
+            # todo organization_id
+            org_id = OrganizationUser.objects.get(user=request.user).organization_id
+            serializer.save(created_by=self.request.user, organization_id=org_id) #Create
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DocumentItemList(APIView):
