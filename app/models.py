@@ -7,30 +7,13 @@ from django.utils.translation import ugettext_lazy as _
 from organizations.models import Organization, OrganizationUser
 
 
-class OrganizationMixin:
-    """Mixin used like a SingleObjectMixin to fetch an organization"""
+class ForUser(models.Manager):
+    def for_user(self, user):
+        
+        org_id = OrganizationUser.objects.get(user=user).organization_id
+        return self.get_queryset().filter(organization_id=org_id)
 
-    org_model = Organization
-    org_context_name = "organization"
-
-    def get_org_model(self):
-        return self.org_model
-
-    def get_context_data(self, **kwargs):
-        kwargs.update({self.org_context_name: self.organization})
-        return super().get_context_data(**kwargs)
-
-    @cached_property
-    def organization(self):
-        organization_pk = self.kwargs.get("organization_pk", None)
-        return get_object_or_404(self.get_org_model(), pk=organization_pk)
-
-    def get_object(self):
-        return self.organization
-
-    get_organization = get_object  # Now available when `get_object` is overridden
-
-class Vendor(OrganizationMixin, models.Model):
+class Vendor(models.Model):
     street_address = models.CharField(max_length=100, default="")
     city = models.CharField(max_length=100, default="")
     organization = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE, related_name='Vendor_org', \
@@ -41,11 +24,15 @@ class Vendor(OrganizationMixin, models.Model):
     updated_by = models.ForeignKey(to=User, on_delete=models.PROTECT, null=True, blank=True, related_name='Vendor_updated_by')
     updated_at = models.DateTimeField(auto_now=True)
     
+    objects = ForUser()
+
     class Meta:
         indexes = [
             models.Index(fields=['organization', 'created_by']),
         ]
 
+    def __repr__(self):
+        return '<Audit {}>'.format(self.city)
 
 class DocumentItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

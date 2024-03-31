@@ -2,9 +2,10 @@
 import json
 
 import requests
-from django.db.models import Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render
+# from django.db.models import Q
+from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from organizations.models import Organization, OrganizationUser
@@ -22,11 +23,13 @@ from .serializers import (DocumentItemSerializer, DocumentItemUpdSerializer,
 
 class VendorList(APIView):
     permission_classes = (permissions.IsAuthenticated,)
-    
+    # filter_backends = [DjangoFilterBackend,filters.OrderingFilter]
+
     """
     List [40] Vendor,
     or create a new Vendor.
     """
+
     def get_object(self, pk):
         try:
             return Vendor.objects.get(pk=pk)
@@ -35,11 +38,9 @@ class VendorList(APIView):
 
     @swagger_auto_schema(responses={200: VendorSerializer(many=True)})
     def get(self, request, format=None):
-        org_id = OrganizationUser.objects.get( \
-            user=request.user).organization_id
+        # org_id = OrganizationUser.objects.get(user=request.user).organization_id
             
-        dataset = Vendor.objects.filter(Q(created_by=self.request.user) | \
-            Q(organization_id=org_id)).order_by('-created_at')[:40]
+        dataset = Vendor.objects.for_user(self.request.user).order_by('-created_at')[:40]
         serializer = VendorSerializer(dataset, many=True)
         #Validate
         return Response(serializer.data)

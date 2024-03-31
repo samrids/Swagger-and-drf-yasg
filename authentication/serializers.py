@@ -3,6 +3,7 @@ from django.contrib import auth
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 # from django.utils.encoding import smart_str, force_str, smart_bytes, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode  # , urlsafe_base64_encode
+from organizations.models import Organization, OrganizationUser
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
@@ -53,7 +54,7 @@ class LoginSerializer(serializers.ModelSerializer):
 
     def get_tokens(self, obj):
         user = User.objects.get(email=obj['email'])
-               
+
         token =  RefreshToken.for_user(user)
         return {
             'refresh':  str(token),
@@ -80,6 +81,10 @@ class LoginSerializer(serializers.ModelSerializer):
             raise AuthenticationFailed('Account disabled, contact admin')
         if not user.is_verified:
             raise AuthenticationFailed('Email is not verified')
+        #Found bug when 1 
+        org_pk = OrganizationUser.objects.filter(user=user).first().organization_id
+        user.active_organization_id = org_pk
+        user.save(update_fields=['active_organization'])
 
         return {
             'email': user.email,

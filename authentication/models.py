@@ -1,9 +1,6 @@
-from django.db import models
-
 # Create your models here.
-from django.contrib.auth.models import (
-    AbstractBaseUser, BaseUserManager, PermissionsMixin)
-
+from django.contrib.auth.models import (AbstractBaseUser, BaseUserManager,
+                                        PermissionsMixin)
 from django.db import models
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -38,6 +35,20 @@ AUTH_PROVIDERS = {'facebook': 'facebook',
                   'email': 'email'}
 
 
+def get_organization_from_request(request):
+    """Helper for backward compatibility with org_pk in session"""
+    # TODO remove session logic in next release
+    user = request.user
+    if user and user.is_authenticated:
+        if user.active_organization is None:
+            organization_pk = request.session.get('organization_pk')
+            if organization_pk:
+                user.active_organization_id = organization_pk
+                user.save()
+                request.session.pop('organization_pk', None)
+                request.session.modified = True
+        return user.active_organization_id
+        
 class User(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=255, unique=True, db_index=True)
     first_name = models.CharField(max_length=150, null=True,blank=True)
@@ -62,6 +73,10 @@ class User(AbstractBaseUser, PermissionsMixin):
         max_length=255, blank=False,
         null=False, default=AUTH_PROVIDERS.get('email'))
 
+    active_organization = models.ForeignKey(
+        'organizations.Organization', null=True, on_delete=models.SET_NULL, related_name='active_users'
+    )
+    
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
